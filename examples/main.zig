@@ -1,8 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
-const nm = @cImport({
-    @cInclude("nanomodbus.h");
-});
+const nm = @import("nanomodbus");
 
 fn transport_read(buf: [*c]u8, count: u16, timeout_ms: i32, arg: ?*anyopaque) callconv(.C) c_int {
     if (timeout_ms == 0) return 0;

@@ -17,25 +17,44 @@ pub fn build(b: *std.Build) void {
 
     const nanomodbus_dep = b.dependency("nanomodbus", .{ .target = target, .optimize = optimize });
 
+    const nanomodbus_mod = b.createModule(.{
+        // `root_source_file` is the Zig "entry point" of the module. If a module
+        // only contains e.g. external object files, you can make this `null`.
+        // In this case the main source file is merely a path, however, in more
+        // complicated build scripts, this could be a generated file.
+        .root_source_file = b.path("src/nanomodbus.zig"),
+        .target = target,
+        .optimize = optimize,
+        .link_libc = true,
+    });
+
+    // nanomodbus_mod.addCMacro("NMBS_DEBUG", "1");
+
+    nanomodbus_mod.addCSourceFile(.{
+        .file = nanomodbus_dep.path("nanomodbus.c"),
+    });
+
+    nanomodbus_mod.addIncludePath(nanomodbus_dep.path(""));
+
+    const nanomodbus = b.addLibrary(.{
+        .name = "nanomodbus",
+        .root_module = nanomodbus_mod,
+        .linkage = .static,
+    });
+    b.installArtifact(nanomodbus);
+
     // We will also create a module for our other entry point, 'main.zig'.
     const exe_mod = b.createModule(.{
         // `root_source_file` is the Zig "entry point" of the module. If a module
         // only contains e.g. external object files, you can make this `null`.
         // In this case the main source file is merely a path, however, in more
         // complicated build scripts, this could be a generated file.
-        .root_source_file = b.path("src/main.zig"),
+        .root_source_file = b.path("examples/main.zig"),
         .target = target,
         .optimize = optimize,
         .link_libc = true,
     });
-
-    // exe_mod.addCMacro("NMBS_DEBUG", "1");
-
-    exe_mod.addCSourceFile(.{
-        .file = nanomodbus_dep.path("nanomodbus.c"),
-    });
-
-    exe_mod.addIncludePath(nanomodbus_dep.path(""));
+    exe_mod.addImport("nanomodbus", nanomodbus_mod);
 
     // This creates another `std.Build.Step.Compile`, but this one builds an executable
     // rather than a static library.
@@ -43,11 +62,7 @@ pub fn build(b: *std.Build) void {
         .name = "zig_modbus",
         .root_module = exe_mod,
     });
-
-    // This declares intent for the executable to be installed into the
-    // standard location when the user invokes the "install" step (the default
-    // step when running `zig build`).
-    b.installArtifact(exe);
+    const build_exe = b.addInstallArtifact(exe, .{});
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
@@ -58,7 +73,7 @@ pub fn build(b: *std.Build) void {
     // installation directory rather than directly from within the cache directory.
     // This is not necessary, however, if the application depends on other installed
     // files, this ensures they will be present and in the expected location.
-    run_cmd.step.dependOn(b.getInstallStep());
+    run_cmd.step.dependOn(&build_exe.step);
 
     // This allows the user to pass arguments to the application in the build
     // command itself, like this: `zig build run -- arg1 arg2 etc`
