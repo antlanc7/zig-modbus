@@ -27,7 +27,13 @@ fn transport_write(buf: [*c]const u8, count: u16, timeout_ms: i32, arg: ?*anyopa
 }
 
 pub fn main() !void {
-    const host = try std.net.Address.parseIp4("192.168.101.2", 502);
+    std.debug.print("Enter IP: ", .{});
+    const stdin = std.io.getStdIn().reader();
+    var stdin_buf: [1024]u8 = undefined;
+    const line = (try stdin.readUntilDelimiterOrEof(&stdin_buf, '\n')).?;
+    const lineTrimmed = std.mem.trim(u8, line, &std.ascii.whitespace);
+
+    const host = try std.net.Address.parseIp4(lineTrimmed, 502);
     var stream = try std.net.tcpConnectToAddress(host);
     defer stream.close();
 
