@@ -52,12 +52,11 @@ const RegTypes = enum {
     ireg,
 };
 
-pub fn main() !void {
-    var gpa: std.heap.DebugAllocator(.{}) = .init;
-    defer _ = gpa.deinit();
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
+    const io = init.io;
 
-    var args_iterator = try std.process.argsWithAllocator(allocator);
+    var args_iterator = try init.minimal.args.iterateAllocator(allocator);
     defer args_iterator.deinit();
     _ = args_iterator.skip();
 
@@ -66,16 +65,17 @@ pub fn main() !void {
     const reg = if (args_iterator.next()) |r| try std.fmt.parseInt(u16, r, 0) else return error.NoReg;
     const cnt = if (args_iterator.next()) |c| try std.fmt.parseInt(u16, c, 0) else return error.NoCnt;
 
-    const host = try std.net.Address.parseIp4(ip, 502);
-    var stream = try std.net.tcpConnectToAddress(host);
-    defer stream.close();
+    const host = try std.Io.net.IpAddress.parseIp4(ip, 502);
+
+    var stream = try host.connect(io, .{ .mode = .stream });
+    defer stream.close(io);
 
     var stream_reader_buffer: [1024]u8 = undefined;
-    var stream_reader = stream.reader(&stream_reader_buffer);
-    const reader = stream_reader.interface();
+    var stream_reader = stream.reader(io, &stream_reader_buffer);
+    const reader = &stream_reader.interface;
 
     var stream_writer_buffer: [1024]u8 = undefined;
-    var stream_writer = stream.writer(&stream_writer_buffer);
+    var stream_writer = stream.writer(io, &stream_writer_buffer);
     const writer = &stream_writer.interface;
 
     const rw: RWptrs = .{

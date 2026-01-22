@@ -16,6 +16,7 @@ pub fn build(b: *std.Build) void {
         .file = nanomodbus_dep.path("nanomodbus.c"),
     });
     nanomodbus.addIncludePath(nanomodbus_dep.path(""));
+    nanomodbus.addCMacro("NMBS_SERVER_DISABLED", "1");
 
     const nanomodbus_static_lib = b.addLibrary(.{
         .name = "nanomodbus",
