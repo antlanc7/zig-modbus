@@ -41,6 +41,13 @@ pub fn build(b: *std.Build) void {
     });
     const build_exe = b.addInstallArtifact(exe, .{});
 
+    const exe_check = b.addExecutable(.{
+        .name = "zig_modbus_check",
+        .root_module = exe.root_module,
+    });
+    const check = b.step("check", "Check if foo compiles");
+    check.dependOn(&exe_check.step);
+
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(&build_exe.step);
 
