@@ -42,8 +42,8 @@
             // `hash`, otherwise you are communicating that you expect to find the old hash at
             // the new URL. If the contents of a URL change this will result in a hash mismatch
             // which will prevent zig from using it.
-            .url = "https://github.com/debevv/nanoMODBUS/archive/refs/tags/v1.21.0.tar.gz",
-            .hash = "N-V-__8AAMh4BAAsaIgETds0Pjd9lYfdl0nKCLhIzT26S15z",
+            .url = "https://github.com/debevv/nanoMODBUS/archive/refs/tags/v1.23.0.tar.gz",
+            .hash = "N-V-__8AADCgBADqud5j8X6eLVG9wRtBSpR_gotlvFWdB0br",
         },
     },
 

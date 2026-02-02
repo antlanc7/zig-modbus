@@ -17,6 +17,7 @@ pub fn build(b: *std.Build) void {
     });
     nanomodbus.addIncludePath(nanomodbus_dep.path(""));
     nanomodbus.addCMacro("NMBS_SERVER_DISABLED", "1");
+    nanomodbus.addCMacro("NMBS_STRERROR_DISABLED", "1");
 
     const nanomodbus_static_lib = b.addLibrary(.{
         .name = "nanomodbus",
@@ -34,7 +35,6 @@ pub fn build(b: *std.Build) void {
             .root_source_file = b.path("examples/main.zig"),
             .target = target,
             .optimize = optimize,
-            .link_libc = true,
             .imports = &.{
                 .{ .name = "nanomodbus", .module = nanomodbus },
             },
@@ -46,16 +46,12 @@ pub fn build(b: *std.Build) void {
         .name = "zig_modbus_check",
         .root_module = exe.root_module,
     });
-    const check = b.step("check", "Check if foo compiles");
-    check.dependOn(&exe_check.step);
+    b.step("check", "Check if foo compiles").dependOn(&exe_check.step);
 
     const run_cmd = b.addRunArtifact(exe);
     run_cmd.step.dependOn(&build_exe.step);
-
     if (b.args) |args| {
         run_cmd.addArgs(args);
     }
-
-    const run_step = b.step("run", "Run the app");
-    run_step.dependOn(&run_cmd.step);
+    b.step("run", "Run the app").dependOn(&run_cmd.step);
 }

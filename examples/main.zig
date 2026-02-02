@@ -1,6 +1,7 @@
 const std = @import("std");
-const builtin = @import("builtin");
-const nm = @import("nanomodbus").nanomodbus;
+const nm_lib = @import("nanomodbus");
+const nm = nm_lib.c;
+const nm_check_error = nm_lib.nm_check_error;
 
 const RWptrs = struct {
     reader: *std.Io.Reader,
@@ -11,21 +12,21 @@ fn transport_read(buf: [*c]u8, count: u16, byte_timeout_ms: i32, arg: ?*anyopaqu
     const rw: *const RWptrs = @ptrCast(@alignCast(arg));
     const reader = rw.reader;
     const dest = buf[0..count];
-    std.debug.print("To read {}...", .{count});
+    std.log.debug("To read {}...", .{count});
     if (byte_timeout_ms == 0) {
         const read_cnt = @min(reader.bufferedLen(), count);
         reader.readSliceAll(dest[0..read_cnt]) catch {
-            std.debug.print("Read Error\n", .{});
+            std.log.debug("Read Error", .{});
             return -1;
         };
-        std.debug.print(" Read with no timeout OK, read count: {}, data: {any}\n", .{ read_cnt, dest[0..read_cnt] });
+        std.log.debug(" Read with no timeout OK, read count: {}, data: {any}", .{ read_cnt, dest[0..read_cnt] });
         return @intCast(read_cnt);
     }
     reader.readSliceAll(dest) catch {
-        std.debug.print(" Read Error\n", .{});
+        std.log.debug(" Read Error", .{});
         return -1;
     };
-    std.debug.print(" Read OK, data: {any}\n", .{dest});
+    std.log.debug(" Read OK, data: {any}", .{dest});
     return count;
 }
 
@@ -39,12 +40,19 @@ fn transport_write(buf: [*c]const u8, count: u16, byte_timeout_ms: i32, arg: ?*a
     const rw: *RWptrs = @ptrCast(@alignCast(arg));
     const writer = rw.writer;
     const data = buf[0..count];
-    std.debug.print("Write: cnt: {}, data: {any}\n", .{ count, data });
+    std.log.debug("Write: cnt: {}, data: {any}", .{ count, data });
     writeAllAndFlush(writer, data) catch |err| {
-        std.debug.print("Write Error {}\n", .{err});
+        std.log.debug("Write Error {}", .{err});
         return -1;
     };
     return count;
+}
+
+// clear reader buffer
+fn transport_flush(_: [*c]nm.nmbs_t, arg: ?*anyopaque) callconv(.c) void {
+    std.log.debug("flush reader", .{});
+    const rw: *RWptrs = @ptrCast(@alignCast(arg));
+    rw.reader.tossBuffered();
 }
 
 const RegTypes = enum {
@@ -83,38 +91,38 @@ pub fn main(init: std.process.Init) !void {
         .writer = writer,
     };
 
-    std.debug.print("Connected\n", .{});
+    std.log.info("Connected", .{});
 
     var platform_conf: nm.nmbs_platform_conf = undefined;
     nm.nmbs_platform_conf_create(&platform_conf);
     platform_conf.transport = nm.NMBS_TRANSPORT_TCP;
     platform_conf.read = transport_read;
     platform_conf.write = transport_write;
+    platform_conf.flush = transport_flush;
     platform_conf.arg = @constCast(&rw);
 
     var nmbs: nm.nmbs_t = undefined;
-    const create_err = nm.nmbs_client_create(&nmbs, &platform_conf);
-    if (create_err != nm.NMBS_ERROR_NONE) {
-        std.debug.print("NMBS Create error: {s}\n", .{nm.nmbs_strerror(create_err)});
-        return error.NMBSError;
-    }
+    nm_check_error(nm.nmbs_client_create(&nmbs, &platform_conf)) catch |err| {
+        std.log.err("NMBS Create error: {t}", .{err});
+        return err;
+    };
 
-    std.debug.print("NMBS Created\n", .{});
+    std.log.info("NMBS Created", .{});
 
     nm.nmbs_set_read_timeout(&nmbs, 1000);
 
-    std.debug.print("Reading: reg_type:{t} reg:{} cnt:{}\n", .{ reg_type, reg, cnt });
+    std.log.info("Reading: reg_type:{t} reg:{} cnt:{}", .{ reg_type, reg, cnt });
 
     const read_buffer = try allocator.alloc(u16, cnt);
     defer allocator.free(read_buffer);
-    const read_err = switch (reg_type) {
+
+    nm_check_error(switch (reg_type) {
         .ireg => nm.nmbs_read_input_registers(&nmbs, reg, cnt, read_buffer.ptr),
         .hreg => nm.nmbs_read_holding_registers(&nmbs, reg, cnt, read_buffer.ptr),
+    }) catch |err| {
+        std.log.err("NMBS Read error: {t}", .{err});
+        return err;
     };
-    if (read_err != nm.NMBS_ERROR_NONE) {
-        std.debug.print("NMBS Read error: {s}\n", .{nm.nmbs_strerror(read_err)});
-        return error.NMBSError;
-    }
 
-    std.debug.print("Read: {any}\n", .{read_buffer});
+    std.log.info("Read: {any}", .{read_buffer});
 }

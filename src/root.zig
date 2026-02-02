@@ -1,3 +1,39 @@
-pub const nanomodbus = @cImport({
+pub const c = @cImport({
     @cInclude("nanomodbus.h");
 });
+
+pub const nmbs_error = error{
+    ERROR_INVALID_REQUEST,
+    ERROR_INVALID_UNIT_ID,
+    ERROR_INVALID_TCP_MBAP,
+    ERROR_CRC,
+    ERROR_TRANSPORT,
+    ERROR_TIMEOUT,
+    ERROR_INVALID_RESPONSE,
+    ERROR_INVALID_ARGUMENT,
+    ERROR_NONE,
+    EXCEPTION_ILLEGAL_FUNCTION,
+    EXCEPTION_ILLEGAL_DATA_ADDRESS,
+    EXCEPTION_ILLEGAL_DATA_VALUE,
+    EXCEPTION_SERVER_DEVICE_FAILURE,
+    ERROR_UNKNOWN,
+};
+
+pub fn nm_check_error(err_c: c.nmbs_error) nmbs_error!void {
+    return switch (err_c) {
+        c.NMBS_ERROR_NONE => {},
+        c.NMBS_ERROR_INVALID_REQUEST => nmbs_error.ERROR_INVALID_REQUEST,
+        c.NMBS_ERROR_INVALID_UNIT_ID => nmbs_error.ERROR_INVALID_UNIT_ID,
+        c.NMBS_ERROR_INVALID_TCP_MBAP => nmbs_error.ERROR_INVALID_TCP_MBAP,
+        c.NMBS_ERROR_CRC => nmbs_error.ERROR_CRC,
+        c.NMBS_ERROR_TRANSPORT => nmbs_error.ERROR_TRANSPORT,
+        c.NMBS_ERROR_TIMEOUT => nmbs_error.ERROR_TIMEOUT,
+        c.NMBS_ERROR_INVALID_RESPONSE => nmbs_error.ERROR_INVALID_RESPONSE,
+        c.NMBS_ERROR_INVALID_ARGUMENT => nmbs_error.ERROR_INVALID_ARGUMENT,
+        c.NMBS_EXCEPTION_ILLEGAL_FUNCTION => nmbs_error.EXCEPTION_ILLEGAL_FUNCTION,
+        c.NMBS_EXCEPTION_ILLEGAL_DATA_ADDRESS => nmbs_error.EXCEPTION_ILLEGAL_DATA_ADDRESS,
+        c.NMBS_EXCEPTION_ILLEGAL_DATA_VALUE => nmbs_error.EXCEPTION_ILLEGAL_DATA_VALUE,
+        c.NMBS_EXCEPTION_SERVER_DEVICE_FAILURE => nmbs_error.EXCEPTION_SERVER_DEVICE_FAILURE,
+        else => nmbs_error.ERROR_UNKNOWN,
+    };
+}
