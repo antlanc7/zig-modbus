@@ -59,5 +59,6 @@
         "build.zig",
         "build.zig.zon",
         "src",
+        "examples",
     },
 }

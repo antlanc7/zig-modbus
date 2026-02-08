@@ -68,14 +68,14 @@ pub fn main(init: std.process.Init) !void {
     defer args_iterator.deinit();
     _ = args_iterator.skip();
 
-    const ip = args_iterator.next() orelse return error.NoIP;
+    const hostname = args_iterator.next() orelse return error.NoHostName;
     const reg_type = if (args_iterator.next()) |r| std.meta.stringToEnum(RegTypes, r) orelse return error.InvalidRegType else return error.NoRegType;
     const reg = if (args_iterator.next()) |r| try std.fmt.parseInt(u16, r, 0) else return error.NoReg;
     const cnt = if (args_iterator.next()) |c| try std.fmt.parseInt(u16, c, 0) else return error.NoCnt;
 
-    const host = try std.Io.net.IpAddress.parseIp4(ip, 502);
+    const host: std.Io.net.HostName = try .init(hostname);
 
-    var stream = try host.connect(io, .{ .mode = .stream });
+    var stream = try host.connect(io, 502, .{ .mode = .stream });
     defer stream.close(io);
 
     var stream_reader_buffer: [1024]u8 = undefined;
@@ -116,13 +116,16 @@ pub fn main(init: std.process.Init) !void {
     const read_buffer = try allocator.alloc(u16, cnt);
     defer allocator.free(read_buffer);
 
-    nm_check_error(switch (reg_type) {
-        .ireg => nm.nmbs_read_input_registers(&nmbs, reg, cnt, read_buffer.ptr),
-        .hreg => nm.nmbs_read_holding_registers(&nmbs, reg, cnt, read_buffer.ptr),
-    }) catch |err| {
-        std.log.err("NMBS Read error: {t}", .{err});
-        return err;
-    };
+    while (true) {
+        nm_check_error(switch (reg_type) {
+            .ireg => nm.nmbs_read_input_registers(&nmbs, reg, cnt, read_buffer.ptr),
+            .hreg => nm.nmbs_read_holding_registers(&nmbs, reg, cnt, read_buffer.ptr),
+        }) catch |err| {
+            std.log.err("NMBS Read error: {t}", .{err});
+            return err;
+        };
 
-    std.log.info("Read: {any}", .{read_buffer});
+        std.log.info("Read: {any}", .{read_buffer});
+        try io.sleep(.fromSeconds(5), .boot);
+    }
 }
