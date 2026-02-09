@@ -1,7 +1,26 @@
 const std = @import("std");
-const nm_lib = @import("zig_nanomodbus");
-const nm = nm_lib.c;
-const nm_check_error = nm_lib.nm_check_error;
+const nm = @cImport({
+    @cInclude("nanomodbus.h");
+});
+
+fn nm_check_error(err_c: nm.nmbs_error) !void {
+    return switch (err_c) {
+        nm.NMBS_ERROR_NONE => {},
+        nm.NMBS_ERROR_INVALID_REQUEST => error.ERROR_INVALID_REQUEST,
+        nm.NMBS_ERROR_INVALID_UNIT_ID => error.ERROR_INVALID_UNIT_ID,
+        nm.NMBS_ERROR_INVALID_TCP_MBAP => error.ERROR_INVALID_TCP_MBAP,
+        nm.NMBS_ERROR_CRC => error.ERROR_CRC,
+        nm.NMBS_ERROR_TRANSPORT => error.ERROR_TRANSPORT,
+        nm.NMBS_ERROR_TIMEOUT => error.ERROR_TIMEOUT,
+        nm.NMBS_ERROR_INVALID_RESPONSE => error.ERROR_INVALID_RESPONSE,
+        nm.NMBS_ERROR_INVALID_ARGUMENT => error.ERROR_INVALID_ARGUMENT,
+        nm.NMBS_EXCEPTION_ILLEGAL_FUNCTION => error.EXCEPTION_ILLEGAL_FUNCTION,
+        nm.NMBS_EXCEPTION_ILLEGAL_DATA_ADDRESS => error.EXCEPTION_ILLEGAL_DATA_ADDRESS,
+        nm.NMBS_EXCEPTION_ILLEGAL_DATA_VALUE => error.EXCEPTION_ILLEGAL_DATA_VALUE,
+        nm.NMBS_EXCEPTION_SERVER_DEVICE_FAILURE => error.EXCEPTION_SERVER_DEVICE_FAILURE,
+        else => error.ERROR_UNKNOWN,
+    };
+}
 
 const RWptrs = struct {
     reader: *std.Io.Reader,
